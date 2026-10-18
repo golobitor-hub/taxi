@@ -1,0 +1,77 @@
+stages:
+  prepare:
+    desc: Валидация сырых данных, очистка, quality gate (бывш. lab2)
+    cmd: python -m src.clean
+    deps:
+      - data/raw/train.csv
+      - src/clean.py
+      - src/data_validation.py
+      - src/utils.py
+    params:
+      - validation
+      - data.raw_train
+      - data.clean_train
+    outs:
+      - data/processed/train_clean.csv
+      - reports/data_quality
+
+  featurize:
+    desc: Признаки, целевая переменная, временное разбиение (бывш. lab1, п. 8-9)
+    cmd: python -m src.features
+    deps:
+      - data/processed/train_clean.csv
+      - data/raw/test.csv
+      - src/features.py
+      - src/utils.py
+    params:
+      - target
+      - features
+      - split
+      - data.features_dir
+    outs:
+      - data/features
+
+  train:
+    desc: Обучение, подбор порога, финальная модель (бывш. lab1, п. 10-11, 13)
+    cmd: python -m src.train
+    deps:
+      - data/features
+      - src/train.py
+    params:
+      - seed
+      - model
+      - threshold
+    outs:
+      - models/model.joblib
+      - models/final_model.joblib
+    metrics:
+      - models/threshold.json:
+          cache: false
+
+  evaluate:
+    desc: Метрики и графики на holdout (бывш. lab1, п. 12)
+    cmd: python -m src.evaluate
+    deps:
+      - data/features
+      - models/model.joblib
+      - models/threshold.json
+      - src/evaluate.py
+    metrics:
+      - metrics/metrics.json:
+          cache: false
+    plots:
+      - metrics/holdout_plots.png:
+          cache: false
+    outs:
+      - metrics/holdout_errors.csv
+
+  predict:
+    desc: Предсказания на test.csv
+    cmd: python -m src.predict
+    deps:
+      - data/features
+      - models/final_model.joblib
+      - models/threshold.json
+      - src/predict.py
+    outs:
+      - data/predictions/anomaly_predictions.csv

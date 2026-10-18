@@ -1,0 +1,7 @@
+# Пути данных/моделей сюда добавляет сам DVC (dvc add / dvc repro) —
+# в отдельных .gitignore рядом с артефактами. Вручную их прописывать не нужно.
+__pycache__/
+*.pyc
+.venv/
+.ipynb_checkpoints/
+.DS_Store

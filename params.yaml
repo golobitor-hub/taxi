@@ -1,0 +1,43 @@
+seed: 42
+
+data:
+  raw_train: data/raw/train.csv
+  raw_test: data/raw/test.csv
+  clean_train: data/processed/train_clean.csv
+  features_dir: data/features
+
+validation:
+  expected_columns: [id, vendor_id, pickup_datetime, dropoff_datetime, passenger_count,
+                     pickup_longitude, pickup_latitude, dropoff_longitude, dropoff_latitude,
+                     store_and_fwd_flag, trip_duration]
+  vendor_ids: [1, 2]
+  store_and_fwd_flags: [N, Y]
+  passenger_min: 1
+  passenger_max: 6
+  duration_min_sec: 1
+  duration_max_sec: 86400
+  lon_min: -74.30
+  lon_max: -73.65
+  lat_min: 40.45
+  lat_max: 41.05
+
+target:
+  anomaly_threshold_sec: 3600
+
+features:
+  destination_known: true
+
+split:
+  train_frac: 0.70
+  calibration_frac: 0.85   # граница calibration/holdout (доля от общего числа строк)
+
+model:
+  learning_rate: 0.08
+  max_iter: 220
+  max_leaf_nodes: 31
+  min_samples_leaf: 50
+  l2_regularization: 1.0
+  validation_fraction: 0.10
+
+threshold:
+  target_recall: 0.90
