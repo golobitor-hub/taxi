@@ -1,7 +1,3 @@
-"""Стадия predict: предсказания финальной моделью на test.csv.
-
-Запуск: python -m src.predict
-"""
 import argparse
 import json
 
@@ -9,7 +5,6 @@ import joblib
 import pandas as pd
 
 from src.utils import PROJECT_ROOT, ensure_parent, load_params
-
 
 def main(params_path: str) -> None:
     params = load_params(params_path)
@@ -30,7 +25,6 @@ def main(params_path: str) -> None:
     n_anom = int(out["is_anomaly"].sum())
     print(f"Сохранено: {path} {out.shape}")
     print(f"Найдено аномальных поездок: {n_anom} ({n_anom / len(out):.4%})")
-
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)

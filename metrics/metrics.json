@@ -1,0 +1,14 @@
+{
+  "threshold": 0.31321934245037963,
+  "roc_auc": 0.9351417197022094,
+  "pr_auc": 0.5161794997465263,
+  "baseline_pr_auc": 0.011459300278480203,
+  "recall": 0.8946528332003192,
+  "precision": 0.0432985708767864,
+  "f1": 0.08259956526544597,
+  "holdout_rows": 218687,
+  "errors": 49802,
+  "false_positive": 49538,
+  "false_negative": 264,
+  "missed_anomaly_percent": 10.534716679968078
+}

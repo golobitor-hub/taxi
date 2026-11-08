@@ -1,0 +1,221 @@
+schema: '2.0'
+stages:
+  prepare:
+    cmd: python -m src.clean
+    deps:
+    - path: data/raw/train.csv
+      hash: md5
+      md5: e59c291a4b1c640f1dab33b89daa22e1
+      size: 200589097
+    - path: src/clean.py
+      hash: md5
+      md5: 90a41fe3a0c032ecc94548cfe2ff2db6
+      size: 3875
+    - path: src/data_validation.py
+      hash: md5
+      md5: b578c8e32d4e6912b6621948658fcf30
+      size: 4207
+    - path: src/utils.py
+      hash: md5
+      md5: 725a25d08e4e2b63b791c6c75c212a18
+      size: 480
+    params:
+      params.yaml:
+        data.clean_train: data/processed/train_clean.csv
+        data.raw_train: data/raw/train.csv
+        validation:
+          expected_columns:
+          - id
+          - vendor_id
+          - pickup_datetime
+          - dropoff_datetime
+          - passenger_count
+          - pickup_longitude
+          - pickup_latitude
+          - dropoff_longitude
+          - dropoff_latitude
+          - store_and_fwd_flag
+          - trip_duration
+          vendor_ids:
+          - 1
+          - 2
+          store_and_fwd_flags:
+          - N
+          - Y
+          passenger_min: 1
+          passenger_max: 6
+          duration_min_sec: 1
+          duration_max_sec: 86400
+          lon_min: -74.3
+          lon_max: -73.65
+          lat_min: 40.45
+          lat_max: 41.05
+    outs:
+    - path: data/processed/train_clean.csv
+      hash: md5
+      md5: 8d91e802974a027c8b33d2f353b0bf61
+      size: 196905026
+    - path: reports/data_quality
+      hash: md5
+      md5: d75151ce5bbfb71cc882f1418eb92efb.dir
+      size: 5690
+      nfiles: 4
+  featurize:
+    cmd: python -m src.features
+    deps:
+    - path: data/processed/train_clean.csv
+      hash: md5
+      md5: 8d91e802974a027c8b33d2f353b0bf61
+      size: 196905026
+    - path: data/raw/test.csv
+      hash: md5
+      md5: 0686e4fc98617485dba9fdbabbf1c48d
+      size: 70794289
+    - path: src/features.py
+      hash: md5
+      md5: ceb193c13b6ffd9ff94dfe98b804c82b
+      size: 4661
+    - path: src/utils.py
+      hash: md5
+      md5: 725a25d08e4e2b63b791c6c75c212a18
+      size: 480
+    params:
+      params.yaml:
+        data.features_dir: data/features
+        features:
+          destination_known: true
+        split:
+          train_frac: 0.7
+          calibration_frac: 0.85
+        target:
+          anomaly_threshold_sec: 3600
+    outs:
+    - path: data/features
+      hash: md5
+      md5: bb7927e1ae6858f0adda65cacacb63a4.dir
+      size: 110862516
+      nfiles: 8
+  train:
+    cmd: python -m src.train
+    deps:
+    - path: data/features
+      hash: md5
+      md5: bb7927e1ae6858f0adda65cacacb63a4.dir
+      size: 110862516
+      nfiles: 8
+    - path: src/train.py
+      hash: md5
+      md5: c1b1fd328e882d927802b52937078fda
+      size: 3212
+    params:
+      params.yaml:
+        model:
+          learning_rate: 0.08
+          max_iter: 220
+          max_leaf_nodes: 31
+          min_samples_leaf: 50
+          l2_regularization: 1.0
+          validation_fraction: 0.1
+        seed: 42
+        threshold:
+          target_recall: 0.9
+    outs:
+    - path: models/final_model.joblib
+      hash: md5
+      md5: 0d14ee277e2e39ae4b043f51f46c045a
+      size: 329440
+    - path: models/model.joblib
+      hash: md5
+      md5: 71ca8646a0094ee45b6d0327335a58cb
+      size: 330800
+    - path: models/threshold.json
+      hash: md5
+      md5: 21e2f5291aaf0abde36aabe4086d692d
+      size: 177
+  evaluate:
+    cmd: python -m src.evaluate
+    deps:
+    - path: data/features
+      hash: md5
+      md5: bb7927e1ae6858f0adda65cacacb63a4.dir
+      size: 110862516
+      nfiles: 8
+    - path: models/model.joblib
+      hash: md5
+      md5: 71ca8646a0094ee45b6d0327335a58cb
+      size: 330800
+    - path: models/threshold.json
+      hash: md5
+      md5: 21e2f5291aaf0abde36aabe4086d692d
+      size: 177
+    - path: src/evaluate.py
+      hash: md5
+      md5: 7a71932f0d903c980008177426b83795
+      size: 2977
+    outs:
+    - path: metrics/holdout_errors.csv
+      hash: md5
+      md5: 7386aa0655fe3469334cd83bbf2e2684
+      size: 3925491
+    - path: metrics/holdout_plots.png
+      hash: md5
+      md5: fdbfeb0497395f3a3141a98be864a17d
+      size: 76645
+    - path: metrics/metrics.json
+      hash: md5
+      md5: 7e4dea785080a160c9a1af55797d07c0
+      size: 400
+  predict:
+    cmd: python -m src.predict
+    deps:
+    - path: data/features
+      hash: md5
+      md5: bb7927e1ae6858f0adda65cacacb63a4.dir
+      size: 110862516
+      nfiles: 8
+    - path: models/final_model.joblib
+      hash: md5
+      md5: 0d14ee277e2e39ae4b043f51f46c045a
+      size: 329440
+    - path: models/threshold.json
+      hash: md5
+      md5: 21e2f5291aaf0abde36aabe4086d692d
+      size: 177
+    - path: src/predict.py
+      hash: md5
+      md5: f8535976d05d6b5caff8e4b99c393e22
+      size: 1406
+    outs:
+    - path: data/predictions/anomaly_predictions.csv
+      hash: md5
+      md5: 8e516d027ec23a33362424438225f352
+      size: 20554017
+  baseline:
+    cmd: python -m src.baseline
+    deps:
+    - path: data/features
+      hash: md5
+      md5: bb7927e1ae6858f0adda65cacacb63a4.dir
+      size: 110862516
+      nfiles: 8
+    - path: src/baseline.py
+      hash: md5
+      md5: 21aa1445311e7cd6b3d301b1ad05a2b3
+      size: 10019
+    params:
+      params.yaml:
+        baseline:
+          logreg:
+            C: 1.0
+            max_iter: 500
+          ridge:
+            alpha: 1.0
+        mlflow:
+          tracking_uri: sqlite:///mlflow.db
+          experiment_name: taxi-anomaly-baseline
+        seed: 42
+    outs:
+    - path: metrics/baseline_metrics.json
+      hash: md5
+      md5: 75dc6415d3bf4048883a018ab4b5d46d
+      size: 883

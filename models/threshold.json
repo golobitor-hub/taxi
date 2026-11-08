@@ -1,0 +1,7 @@
+{
+  "threshold": 0.31321934245037963,
+  "target_recall": 0.9,
+  "calibration_recall": 0.9000382995021065,
+  "calibration_precision": 0.044819102473633014,
+  "n_iter": 85
+}

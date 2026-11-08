@@ -1,0 +1,28 @@
+{
+  "dummy_classifier": {
+    "holdout_roc_auc": 0.5,
+    "holdout_pr_auc": 0.011459300278480203,
+    "holdout_f1": 0.022658944903319725,
+    "holdout_precision": 0.011459300278480203,
+    "holdout_recall": 1.0
+  },
+  "logreg_classifier": {
+    "holdout_roc_auc": 0.9222182755853551,
+    "holdout_pr_auc": 0.2717971662720691,
+    "holdout_f1": 0.36755008087594876,
+    "holdout_precision": 0.2670403182064726,
+    "holdout_recall": 0.5893854748603352
+  },
+  "dummy_regressor": {
+    "holdout_rmse_log": 0.813703359584406,
+    "holdout_rmse_sec": 3277.0223832669176,
+    "holdout_mae_sec": 601.3441685075085,
+    "holdout_r2_log": -0.00637455436984502
+  },
+  "ridge_regressor": {
+    "holdout_rmse_log": 0.6142053156218237,
+    "holdout_rmse_sec": 3912.9187040686325,
+    "holdout_mae_sec": 533.1834597275846,
+    "holdout_r2_log": 0.42660411673669796
+  }
+}

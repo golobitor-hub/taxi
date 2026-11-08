@@ -1,7 +1,3 @@
-"""Стадия prepare: валидация сырых данных -> очистка -> валидация + quality gate.
-
-Запуск: python -m src.clean
-"""
 import argparse
 
 import pandas as pd
@@ -11,7 +7,6 @@ from src.utils import PROJECT_ROOT, ensure_parent, load_params
 
 
 def clean_taxi_data(df: pd.DataFrame, cfg: dict) -> pd.DataFrame:
-    """Удаляет дубликаты, пропуски и строки, нарушающие контракт данных."""
     out = df.drop_duplicates()
     out = out.drop_duplicates(subset="id", keep="first")
     out = out.dropna(subset=cfg["expected_columns"])

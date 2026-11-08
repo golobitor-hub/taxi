@@ -1,7 +1,3 @@
-"""Стадия train: обучение, подбор порога на calibration, финальная модель на train+calibration.
-
-Запуск: python -m src.train
-"""
 import argparse
 import json
 
@@ -13,11 +9,9 @@ from sklearn.metrics import precision_recall_curve
 
 from src.utils import PROJECT_ROOT, ensure_parent, load_params
 
-
 def balanced_weights(y: pd.Series) -> np.ndarray:
     w = (y == 0).sum() / (y == 1).sum()
     return np.where(y.to_numpy() == 1, w, 1.0)
-
 
 def pick_threshold(y_true, proba, target_recall: float):
     precision, recall, thresholds = precision_recall_curve(y_true, proba)
@@ -27,7 +21,6 @@ def pick_threshold(y_true, proba, target_recall: float):
     else:
         i = int(np.argmax(recall[:-1]))
     return float(thresholds[i]), float(recall[i]), float(precision[i])
-
 
 def main(params_path: str) -> None:
     params = load_params(params_path)
@@ -69,7 +62,6 @@ def main(params_path: str) -> None:
     with open(mdir / "threshold.json", "w", encoding="utf-8") as f:
         json.dump({"threshold": thr, "target_recall": target, "calibration_recall": rec,
                    "calibration_precision": prec, "n_iter": int(model.n_iter_)}, f, indent=2)
-
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)

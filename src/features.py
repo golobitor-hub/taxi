@@ -1,14 +1,9 @@
-"""Стадия featurize: признаки, целевая переменная, временное разбиение train/calibration/holdout.
-
-Запуск: python -m src.features
-"""
 import argparse
 
 import numpy as np
 import pandas as pd
 
 from src.utils import PROJECT_ROOT, ensure_parent, load_params
-
 
 def manhattan_distance_km(lat1, lon1, lat2, lon2):
     R = 6371.0
@@ -17,13 +12,11 @@ def manhattan_distance_km(lat1, lon1, lat2, lon2):
     dx = R * np.cos(mean_lat) * np.abs(np.radians(lon2 - lon1))
     return dx + dy
 
-
 def bearing(lon1, lat1, lon2, lat2):
     lon1, lat1, lon2, lat2 = map(np.radians, [lon1, lat1, lon2, lat2])
     y = np.sin(lon2 - lon1) * np.cos(lat2)
     x = np.cos(lat1) * np.sin(lat2) - np.sin(lat1) * np.cos(lat2) * np.cos(lon2 - lon1)
     return np.degrees(np.arctan2(y, x))
-
 
 def make_features(df: pd.DataFrame, destination_known: bool = True) -> pd.DataFrame:
     dt = pd.to_datetime(df["pickup_datetime"], errors="coerce")
@@ -56,9 +49,7 @@ def make_features(df: pd.DataFrame, destination_known: bool = True) -> pd.DataFr
         X["latitude_diff"] = (df["dropoff_latitude"] - df["pickup_latitude"]).abs().astype("float32")
         X["bearing"] = bearing(df["pickup_longitude"], df["pickup_latitude"],
                                df["dropoff_longitude"], df["dropoff_latitude"]).astype("float32")
-
     return X.replace([np.inf, -np.inf], np.nan)
-
 
 def main(params_path: str) -> None:
     params = load_params(params_path)
@@ -88,7 +79,6 @@ def main(params_path: str) -> None:
     make_features(test, dest).to_parquet(out_dir / "X_test.parquet")
     test.to_parquet(out_dir / "test_raw.parquet")
     print("Признаков:", X.shape[1], "| test:", len(test))
-
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)

@@ -75,3 +75,17 @@ stages:
       - src/predict.py
     outs:
       - data/predictions/anomaly_predictions.csv
+
+  baseline:
+    desc: Baseline-модели (logreg, ridge, dummy) + трекинг в MLflow (лаба 4)
+    cmd: python -m src.baseline
+    deps:
+      - data/features
+      - src/baseline.py
+    params:
+      - seed
+      - baseline
+      - mlflow
+    metrics:
+      - metrics/baseline_metrics.json:
+          cache: false

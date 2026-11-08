@@ -41,3 +41,14 @@ model:
 
 threshold:
   target_recall: 0.90
+
+mlflow:
+  tracking_uri: sqlite:///mlflow.db     # локальная БД; можно http://host:5000 или env MLFLOW_TRACKING_URI
+  experiment_name: taxi-anomaly-baseline
+
+baseline:
+  logreg:
+    C: 1.0
+    max_iter: 500
+  ridge:
+    alpha: 1.0

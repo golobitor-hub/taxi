@@ -1,7 +1,3 @@
-"""Стадия evaluate: метрики на holdout, графики, таблица ошибок.
-
-Запуск: python -m src.evaluate
-"""
 import argparse
 import json
 
@@ -14,9 +10,7 @@ import pandas as pd
 from sklearn.metrics import (ConfusionMatrixDisplay, PrecisionRecallDisplay, RocCurveDisplay,
                              average_precision_score, classification_report, f1_score,
                              precision_score, recall_score, roc_auc_score)
-
 from src.utils import PROJECT_ROOT, ensure_parent, load_params
-
 
 def main(params_path: str) -> None:
     params = load_params(params_path)
@@ -69,7 +63,6 @@ def main(params_path: str) -> None:
     RocCurveDisplay.from_predictions(y, proba, ax=axes[2])
     plt.tight_layout()
     fig.savefig(PROJECT_ROOT / "metrics" / "holdout_plots.png", dpi=120)
-
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)

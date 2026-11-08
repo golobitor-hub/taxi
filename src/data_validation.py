@@ -1,9 +1,6 @@
-"""Контракт данных (Great Expectations) и quality gate. Код перенесён из lab2."""
 import pandas as pd
 
-
 def build_expectations(cfg: dict) -> list:
-    """Собирает список правил контракта из секции validation в params.yaml."""
     import great_expectations as gx  # импорт здесь, чтобы clean_taxi_data работал без GX
 
     cols = cfg["expected_columns"]
@@ -24,7 +21,6 @@ def build_expectations(cfg: dict) -> list:
 
 
 def validate_dataframe(df: pd.DataFrame, asset_name: str, cfg: dict) -> pd.DataFrame:
-    """Прогоняет все правила и возвращает отчёт (одна строка = одно правило)."""
     import great_expectations as gx
 
     context = gx.get_context(mode="ephemeral")
@@ -66,7 +62,6 @@ def print_validation_summary(report: pd.DataFrame, title: str) -> None:
 
 
 def quality_gate(report: pd.DataFrame, dataset_name: str = "dataset") -> None:
-    """Бросает ValueError, если нарушено хотя бы одно правило контракта."""
     failed = report[~report["success"]]
     if not failed.empty:
         names = (failed["column"].astype(str) + ": " + failed["expectation"].astype(str)).tolist()
