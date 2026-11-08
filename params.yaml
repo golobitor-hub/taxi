@@ -32,7 +32,7 @@ split:
   calibration_frac: 0.85   # граница calibration/holdout (доля от общего числа строк)
 
 model:
-  learning_rate: 0.08
+  learning_rate: 0.09
   max_iter: 220
   max_leaf_nodes: 31
   min_samples_leaf: 50
