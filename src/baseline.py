@@ -13,9 +13,6 @@
 """
 import argparse
 import json
-import os
-import subprocess
-import tempfile
 from pathlib import Path
 
 import matplotlib
@@ -35,28 +32,14 @@ from sklearn.metrics import (PrecisionRecallDisplay, RocCurveDisplay, average_pr
 from sklearn.pipeline import make_pipeline
 from sklearn.preprocessing import StandardScaler
 
+from src.tracking import best_f1_threshold, git_commit, log_model, setup_mlflow
 from src.utils import PROJECT_ROOT, load_params
-
-
-def git_commit() -> str:
-    try:
-        return subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], cwd=PROJECT_ROOT,
-                                       stderr=subprocess.DEVNULL, text=True).strip()
-    except Exception:
-        return "unknown"
 
 
 def load_split(fdir: Path, name: str):
     X = pd.read_parquet(fdir / f"X_{name}.parquet")
     meta = pd.read_parquet(fdir / f"meta_{name}.parquet")
     return X, meta["is_anomaly"].to_numpy(), meta["trip_duration"].to_numpy(dtype="float64")
-
-
-def best_f1_threshold(y_true, proba) -> float:
-    """Порог, максимизирующий F1 на calibration (на holdout порог не подбирается)."""
-    grid = np.unique(np.quantile(proba, np.linspace(0.01, 0.99, 197)))
-    scores = [f1_score(y_true, proba >= t, zero_division=0) for t in grid]
-    return float(grid[int(np.argmax(scores))])
 
 
 def clf_metrics(prefix: str, y, proba, thr: float) -> dict:
@@ -70,31 +53,40 @@ def clf_metrics(prefix: str, y, proba, thr: float) -> dict:
     }
 
 
-def reg_metrics(prefix: str, dur_true, log_pred) -> dict:
-    """RMSE считаем в двух шкалах: log1p(секунды) — на ней учим, и секунды — для интерпретации."""
+def reg_metrics(prefix: str, dur_true, log_pred, normal_max_sec: float) -> dict:
+    """RMSE считаем в двух шкалах: log1p(секунды) — на ней учим, и секунды — для интерпретации.
+
+    rmse_sec_normal — RMSE только по «нормальным» поездкам (<= порога аномалии): общий RMSE в
+    секундах почти целиком определяют ~0.1% поездок длиной ~86000 с (ошибки таксометра).
+    """
     log_true = np.log1p(dur_true)
     sec_pred = np.expm1(log_pred)
+    normal = dur_true <= normal_max_sec
     return {
         f"{prefix}_rmse_log": float(np.sqrt(np.mean((log_true - log_pred) ** 2))),
         f"{prefix}_rmse_sec": float(np.sqrt(np.mean((dur_true - sec_pred) ** 2))),
+        f"{prefix}_rmse_sec_normal": float(np.sqrt(np.mean((dur_true[normal] - sec_pred[normal]) ** 2))),
         f"{prefix}_mae_sec": float(mean_absolute_error(dur_true, sec_pred)),
         f"{prefix}_r2_log": float(r2_score(log_true, log_pred)),
     }
 
 
-def log_model(model, name: str):
-    """MLflow>=3 принимает name=, 2.x — artifact_path=.
+class ClippedLogRegressor:
+    """Обёртка: прогноз в log1p-шкале обрезается границами контракта данных.
 
-    serialization_format="cloudpickle": по умолчанию MLflow 3 сохраняет через skops, который
-    отвергает типы numpy внутри Pipeline (UntrustedTypesFoundException: numpy.dtype).
+    Линейная модель на хвостах признаков (например, distance_km) экстраполирует, и после
+    expm1 отдельные прогнозы улетают в сотни тысяч секунд, хотя по контракту
+    trip_duration <= duration_max_sec.
     """
-    try:
-        mlflow.sklearn.log_model(model, name=name, serialization_format="cloudpickle")
-    except TypeError:
-        mlflow.sklearn.log_model(model, artifact_path=name, serialization_format="cloudpickle")
+
+    def __init__(self, model, min_sec: float, max_sec: float):
+        self.model, self.lo, self.hi = model, np.log1p(min_sec), np.log1p(max_sec)
+
+    def predict(self, X):
+        return np.clip(self.model.predict(X), self.lo, self.hi)
 
 
-def run_classifier(run_name, model, params, data, thr_params, params_path, features, tags):
+def run_classifier(run_name, model, params, data, params_path, features, tags):
     (Xtr, ytr, _), (Xcal, ycal, _), (Xho, yho, _) = data
     with mlflow.start_run(run_name=run_name):
         mlflow.set_tags({**tags, "task": "classification", "model_family": type(model[-1]).__name__})
@@ -125,21 +117,23 @@ def run_classifier(run_name, model, params, data, thr_params, params_path, featu
         return metrics
 
 
-def run_regressor(run_name, model, params, data, params_path, features, tags):
+def run_regressor(run_name, model, params, data, params_path, features, tags, bounds, normal_max):
     (Xtr, _, dtr), (Xcal, _, dcal), (Xho, _, dho) = data
     with mlflow.start_run(run_name=run_name):
         mlflow.set_tags({**tags, "task": "regression", "model_family": type(model[-1]).__name__})
         mlflow.log_params(params)
         mlflow.log_param("n_features", len(features))
         mlflow.log_param("target", "log1p(trip_duration)")
+        mlflow.log_params({"pred_clip_min_sec": bounds[0], "pred_clip_max_sec": bounds[1]})
         model.fit(Xtr, np.log1p(dtr))
+        clipped = ClippedLogRegressor(model, *bounds)
 
         metrics = {}
         for n, X, d in [("train", Xtr, dtr), ("cal", Xcal, dcal), ("holdout", Xho, dho)]:
-            metrics.update(reg_metrics(n, d, model.predict(X)))
+            metrics.update(reg_metrics(n, d, clipped.predict(X), normal_max))
         mlflow.log_metrics(metrics)
 
-        pred = np.expm1(model.predict(Xho))
+        pred = np.expm1(clipped.predict(Xho))
         fig, ax = plt.subplots(figsize=(5.5, 5))
         lim = float(np.quantile(dho, 0.99))
         ax.scatter(dho, pred, s=4, alpha=0.3)
@@ -153,7 +147,8 @@ def run_regressor(run_name, model, params, data, params_path, features, tags):
         mlflow.log_dict({"features": list(features)}, "features.json")
         log_model(model, "model")
         print(f"[{run_name}] holdout RMSE={metrics['holdout_rmse_sec']:.1f} с "
-              f"(log: {metrics['holdout_rmse_log']:.4f}) R2(log)={metrics['holdout_r2_log']:.4f}")
+              f"(<=1ч: {metrics['holdout_rmse_sec_normal']:.1f} с, log: {metrics['holdout_rmse_log']:.4f}) "
+              f"R2(log)={metrics['holdout_r2_log']:.4f}")
         return metrics
 
 
@@ -162,11 +157,10 @@ def main(params_path: str) -> None:
     seed, mcfg, bcfg = params["seed"], params["mlflow"], params["baseline"]
     fdir = PROJECT_ROOT / params["data"]["features_dir"]
 
-    uri = os.environ.get("MLFLOW_TRACKING_URI", mcfg["tracking_uri"])
-    if uri.startswith("sqlite:///") and not uri.startswith("sqlite:////"):
-        uri = "sqlite:///" + str(PROJECT_ROOT / uri[len("sqlite:///"):])  # абсолютный путь к БД
-    mlflow.set_tracking_uri(uri)
-    mlflow.set_experiment(mcfg["experiment_name"])
+    uri = setup_mlflow(mcfg)
+    vcfg = params["validation"]
+    bounds = (vcfg["duration_min_sec"], vcfg["duration_max_sec"])
+    normal_max = params["target"]["anomaly_threshold_sec"]
 
     data = [load_split(fdir, n) for n in ("train", "cal", "holdout")]
     features = list(data[0][0].columns)
@@ -182,18 +176,18 @@ def main(params_path: str) -> None:
     results = {}
     results["dummy_classifier"] = run_classifier(
         "dummy_classifier", make_pipeline(DummyClassifier(strategy="prior")),
-        {"strategy": "prior"}, data, None, params_path, features, tags)
+        {"strategy": "prior"}, data, params_path, features, tags)
     results["logreg_classifier"] = run_classifier(
         "logreg_classifier",
         make_pipeline(*prep(), LogisticRegression(C=lr_p["C"], class_weight="balanced",
                                                   max_iter=lr_p["max_iter"], random_state=seed)),
-        {**lr_p, "class_weight": "balanced", "seed": seed}, data, None, params_path, features, tags)
+        {**lr_p, "class_weight": "balanced", "seed": seed}, data, params_path, features, tags)
     results["dummy_regressor"] = run_regressor(
         "dummy_regressor", make_pipeline(DummyRegressor(strategy="mean")),
-        {"strategy": "mean"}, data, params_path, features, tags)
+        {"strategy": "mean"}, data, params_path, features, tags, bounds, normal_max)
     results["ridge_regressor"] = run_regressor(
         "ridge_regressor", make_pipeline(*prep(), Ridge(alpha=ridge_p["alpha"], random_state=seed)),
-        {**ridge_p, "seed": seed}, data, params_path, features, tags)
+        {**ridge_p, "seed": seed}, data, params_path, features, tags, bounds, normal_max)
 
     out = PROJECT_ROOT / "metrics" / "baseline_metrics.json"
     out.parent.mkdir(parents=True, exist_ok=True)

@@ -16,13 +16,15 @@
   "dummy_regressor": {
     "holdout_rmse_log": 0.813703359584406,
     "holdout_rmse_sec": 3277.0223832669176,
+    "holdout_rmse_sec_normal": 654.5779365026099,
     "holdout_mae_sec": 601.3441685075085,
     "holdout_r2_log": -0.00637455436984502
   },
   "ridge_regressor": {
-    "holdout_rmse_log": 0.6142053156218237,
-    "holdout_rmse_sec": 3912.9187040686325,
-    "holdout_mae_sec": 533.1834597275846,
-    "holdout_r2_log": 0.42660411673669796
+    "holdout_rmse_log": 0.6140692717751082,
+    "holdout_rmse_sec": 3340.5667282284608,
+    "holdout_rmse_sec_normal": 906.1083371497435,
+    "holdout_mae_sec": 527.8142274035154,
+    "holdout_r2_log": 0.4268580980701706
   }
 }

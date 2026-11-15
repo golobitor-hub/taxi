@@ -1,3 +1,10 @@
+"""Стадия evaluate: метрики и графики основной модели на holdout + запись run в MLflow.
+
+Run "hgb_classifier" попадает в тот же эксперимент, что и baseline-модели, поэтому в MLflow UI
+их можно сравнить напрямую. holdout_f1/precision/recall считаются так же, как у baseline
+(порог с лучшим F1 на calibration); метрики рабочего порога (target recall) — с суффиксом
+_at_target_recall.
+"""
 import argparse
 import json
 
@@ -6,11 +13,49 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+import mlflow
 import pandas as pd
 from sklearn.metrics import (ConfusionMatrixDisplay, PrecisionRecallDisplay, RocCurveDisplay,
                              average_precision_score, classification_report, f1_score,
                              precision_score, recall_score, roc_auc_score)
+from src.tracking import best_f1_threshold, git_commit, log_model, setup_mlflow
 from src.utils import PROJECT_ROOT, ensure_parent, load_params
+
+
+def log_run(params, params_path, model, metrics, y, proba, fdir):
+    """Логирует основную модель в MLflow: гиперпараметры, метрики, веса, графики."""
+    setup_mlflow(params["mlflow"])
+    X_cal = pd.read_parquet(fdir / "X_cal.parquet")
+    y_cal = pd.read_parquet(fdir / "meta_cal.parquet")["is_anomaly"].to_numpy()
+    thr_f1 = best_f1_threshold(y_cal, model.predict_proba(X_cal)[:, 1])
+    pred_f1 = (proba >= thr_f1).astype("int8")
+
+    with mlflow.start_run(run_name="hgb_classifier"):
+        mlflow.set_tags({"git_commit": git_commit(), "stage": "evaluate", "task": "classification",
+                         "model_family": type(model).__name__, "rows_holdout": str(len(y))})
+        mlflow.log_params({**params["model"], "seed": params["seed"], "class_weight": "balanced",
+                           "n_iter": int(model.n_iter_), "n_features": int(model.n_features_in_),
+                           "target_recall": params["threshold"]["target_recall"],
+                           "decision_threshold": round(thr_f1, 6),
+                           "decision_threshold_target_recall": round(metrics["threshold"], 6)})
+        mlflow.log_metrics({
+            "holdout_roc_auc": metrics["roc_auc"],
+            "holdout_pr_auc": metrics["pr_auc"],
+            "holdout_f1": f1_score(y, pred_f1, zero_division=0),
+            "holdout_precision": precision_score(y, pred_f1, zero_division=0),
+            "holdout_recall": recall_score(y, pred_f1, zero_division=0),
+            "holdout_f1_at_target_recall": metrics["f1"],
+            "holdout_precision_at_target_recall": metrics["precision"],
+            "holdout_recall_at_target_recall": metrics["recall"],
+            "holdout_missed_anomaly_percent": metrics["missed_anomaly_percent"],
+        })
+        mlflow.log_artifact(str(PROJECT_ROOT / "metrics" / "holdout_plots.png"))
+        mlflow.log_artifact(str(PROJECT_ROOT / "models" / "threshold.json"))
+        mlflow.log_artifact(str(params_path))
+        log_model(model, "model")
+    print(f"[hgb_classifier] записан в MLflow; F1 при F1-оптимальном пороге: "
+          f"{f1_score(y, pred_f1):.4f}")
+
 
 def main(params_path: str) -> None:
     params = load_params(params_path)
@@ -63,6 +108,9 @@ def main(params_path: str) -> None:
     RocCurveDisplay.from_predictions(y, proba, ax=axes[2])
     plt.tight_layout()
     fig.savefig(PROJECT_ROOT / "metrics" / "holdout_plots.png", dpi=120)
+    plt.close(fig)
+
+    log_run(params, params_path, model, metrics, y, proba, fdir)
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__)

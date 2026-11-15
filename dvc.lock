@@ -150,8 +150,27 @@ stages:
       size: 177
     - path: src/evaluate.py
       hash: md5
-      md5: 265bbcaa002bf89600c76f19a1fe3d8f
-      size: 2831
+      md5: b6d05afe4aecaaa3c476402f885a9e7f
+      size: 5892
+    - path: src/tracking.py
+      hash: md5
+      md5: 75b375cb75c8efb7a4de619261a78f77
+      size: 2356
+    params:
+      params.yaml:
+        mlflow:
+          tracking_uri: sqlite:///mlflow.db
+          experiment_name: taxi-anomaly-baseline
+        model:
+          learning_rate: 0.09
+          max_iter: 220
+          max_leaf_nodes: 31
+          min_samples_leaf: 50
+          l2_regularization: 1.0
+          validation_fraction: 0.1
+        seed: 42
+        threshold:
+          target_recall: 0.9
     outs:
     - path: metrics/holdout_errors.csv
       hash: md5
@@ -200,8 +219,12 @@ stages:
       nfiles: 8
     - path: src/baseline.py
       hash: md5
-      md5: 21aa1445311e7cd6b3d301b1ad05a2b3
-      size: 10019
+      md5: 2ce5a0c39796e4c96c9f79bab3bc5639
+      size: 10374
+    - path: src/tracking.py
+      hash: md5
+      md5: 75b375cb75c8efb7a4de619261a78f77
+      size: 2356
     params:
       params.yaml:
         baseline:
@@ -214,8 +237,11 @@ stages:
           tracking_uri: sqlite:///mlflow.db
           experiment_name: taxi-anomaly-baseline
         seed: 42
+        target.anomaly_threshold_sec: 3600
+        validation.duration_max_sec: 86400
+        validation.duration_min_sec: 1
     outs:
     - path: metrics/baseline_metrics.json
       hash: md5
-      md5: 75dc6415d3bf4048883a018ab4b5d46d
-      size: 883
+      md5: 80bb1ccf09c3bc9e02df70cabbcde654
+      size: 984

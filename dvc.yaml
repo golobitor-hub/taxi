@@ -56,6 +56,12 @@ stages:
       - models/model.joblib
       - models/threshold.json
       - src/evaluate.py
+      - src/tracking.py
+    params:
+      - seed
+      - model
+      - threshold
+      - mlflow
     metrics:
       - metrics/metrics.json:
           cache: false
@@ -82,10 +88,14 @@ stages:
     deps:
       - data/features
       - src/baseline.py
+      - src/tracking.py
     params:
       - seed
       - baseline
       - mlflow
+      - validation.duration_min_sec
+      - validation.duration_max_sec
+      - target.anomaly_threshold_sec
     metrics:
       - metrics/baseline_metrics.json:
           cache: false
