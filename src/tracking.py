@@ -24,12 +24,20 @@ def setup_mlflow(mcfg: dict) -> str:
     return uri
 
 
+CODE_PATHS = ["src", "params.yaml", "dvc.yaml", "requirements.txt"]
+
+
 def git_commit() -> str:
-    """Короткий хэш коммита; суффикс -dirty, если код в рабочей копии не закоммичен."""
+    """Короткий хэш коммита; суффикс -dirty, если код/конфиг в рабочей копии не закоммичены.
+
+    dvc.lock и метрики не учитываются: их перезаписывает сам dvc repro посреди прогона.
+    """
+    def git(*args):
+        return subprocess.check_output(["git", *args], cwd=PROJECT_ROOT,
+                                       stderr=subprocess.DEVNULL, text=True).strip()
     try:
-        return subprocess.check_output(
-            ["git", "describe", "--always", "--dirty", "--abbrev=7", "--exclude=*"],
-            cwd=PROJECT_ROOT, stderr=subprocess.DEVNULL, text=True).strip()
+        sha = git("rev-parse", "--short=7", "HEAD")
+        return sha + ("-dirty" if git("status", "--porcelain", "--", *CODE_PATHS) else "")
     except Exception:
         return "unknown"
 

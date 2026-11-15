@@ -154,8 +154,8 @@ stages:
       size: 5892
     - path: src/tracking.py
       hash: md5
-      md5: 75b375cb75c8efb7a4de619261a78f77
-      size: 2356
+      md5: abb0ee77ab8deec82a7cbf88840c71d1
+      size: 2709
     params:
       params.yaml:
         mlflow:
@@ -223,8 +223,8 @@ stages:
       size: 10374
     - path: src/tracking.py
       hash: md5
-      md5: 75b375cb75c8efb7a4de619261a78f77
-      size: 2356
+      md5: abb0ee77ab8deec82a7cbf88840c71d1
+      size: 2709
     params:
       params.yaml:
         baseline:
