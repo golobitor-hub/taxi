@@ -136,8 +136,13 @@ dvc repro            # ничего не пересчитывает, если в
 ```bash
 pip install -r requirements.txt
 dvc repro                       # стадии evaluate и baseline пишут runs в MLflow
-mlflow ui --backend-store-uri sqlite:///mlflow.db   # http://127.0.0.1:5000
+python scripts/mlflow_ui.py     # MLflow UI: http://127.0.0.1:5000
 ```
+
+`scripts/mlflow_ui.py` запускает `mlflow ui --backend-store-uri sqlite:///mlflow.db` с исправлением
+MIME-типов. На Windows Python берёт их из реестра, и если там `.js → text/plain`, UI отдаёт свой JS
+как текст, а браузер показывает белый экран. Исправление (`scripts/_mime_fix/sitecustomize.py`)
+действует только на процессы, запущенные этим скриптом, реестр не меняется.
 
 Хранилище MLflow задаётся в `params.yaml → mlflow.tracking_uri` (по умолчанию локальная `mlflow.db`).
 Переменная окружения `MLFLOW_TRACKING_URI` его перекрывает, например для удалённого сервера.
