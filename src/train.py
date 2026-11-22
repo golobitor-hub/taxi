@@ -9,6 +9,7 @@ from sklearn.metrics import precision_recall_curve
 
 from src.utils import PROJECT_ROOT, ensure_parent, load_params
 
+
 def balanced_weights(y: pd.Series) -> np.ndarray:
     w = (y == 0).sum() / (y == 1).sum()
     return np.where(y.to_numpy() == 1, w, 1.0)

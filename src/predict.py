@@ -6,6 +6,7 @@ import pandas as pd
 
 from src.utils import PROJECT_ROOT, ensure_parent, load_params
 
+
 def main(params_path: str) -> None:
     params = load_params(params_path)
     fdir = PROJECT_ROOT / params["data"]["features_dir"]

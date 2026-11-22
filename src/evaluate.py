@@ -15,9 +15,18 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import mlflow
 import pandas as pd
-from sklearn.metrics import (ConfusionMatrixDisplay, PrecisionRecallDisplay, RocCurveDisplay,
-                             average_precision_score, classification_report, f1_score,
-                             precision_score, recall_score, roc_auc_score)
+from sklearn.metrics import (
+    ConfusionMatrixDisplay,
+    PrecisionRecallDisplay,
+    RocCurveDisplay,
+    average_precision_score,
+    classification_report,
+    f1_score,
+    precision_score,
+    recall_score,
+    roc_auc_score,
+)
+
 from src.tracking import best_f1_threshold, git_commit, log_model, setup_mlflow
 from src.utils import PROJECT_ROOT, ensure_parent, load_params
 

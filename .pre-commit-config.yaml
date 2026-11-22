@@ -1,0 +1,18 @@
+# Локальные проверки перед каждым коммитом (установка: pre-commit install; отключение: pre-commit uninstall).
+# Хуки используют инструменты из активного окружения проекта (.venv), ничего не скачивают.
+# Здесь только быстрые проверки (~5 с); тесты данных на Great Expectations дольше и идут в CI.
+repos:
+  - repo: local
+    hooks:
+      - id: ruff
+        name: ruff (линтер)
+        entry: python -m ruff check --fix --exit-non-zero-on-fix
+        language: system
+        types: [python]
+
+      - id: unit-tests
+        name: pytest (юнит-тесты)
+        entry: python -m pytest -q -x -m "not data" --ignore=tests/test_data_contract.py -p no:cacheprovider
+        language: system
+        pass_filenames: false
+        files: ^(src|tests)/.*\.py$|^(params|dvc)\.yaml$

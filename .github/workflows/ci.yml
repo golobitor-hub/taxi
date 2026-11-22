@@ -1,0 +1,109 @@
+# CI: на каждый push (в любую ветку) и pull request запускаются три независимые проверки:
+#   1) lint        — ruff + проверка, что dvc.yaml собирается в граф стадий;
+#   2) data-tests  — контракт данных Great Expectations и quality gate из ЛР2;
+#   3) unit-tests  — юнит-тесты очистки, признаков, разбиения, метрик + покрытие кода.
+# Полный датасет лежит в DVC-хранилище и раннеру недоступен, поэтому тесты данных идут на
+# реальной выборке tests/fixtures/train_sample.csv; тесты с маркером `data` здесь пропускаются.
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYTHON_VERSION: "3.12"
+  MLFLOW_DISABLE_AGENT_HINT: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+
+jobs:
+  lint:
+    name: Линтер (ruff) и конфигурация DVC
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+
+      - name: Установка ruff и dvc
+        run: pip install ruff==0.17.6 dvc==3.67.1
+
+      - name: ruff check
+        run: ruff check --output-format=github .
+
+      - name: Граф стадий DVC (dvc.yaml корректен)
+        run: dvc dag
+
+  data-tests:
+    name: Тесты данных (Great Expectations)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Установка зависимостей
+        run: pip install -r requirements-dev.txt
+
+      - name: Контракт данных и quality gate
+        run: >
+          pytest tests/test_data_contract.py -m "not data"
+          --junitxml=test-reports/junit-data.xml
+
+      - name: Сохранить отчёт
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: data-tests-report
+          path: test-reports/
+
+  unit-tests:
+    name: Юнит-тесты предобработки
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          cache: pip
+          cache-dependency-path: |
+            requirements.txt
+            requirements-dev.txt
+
+      - name: Установка зависимостей
+        run: pip install -r requirements-dev.txt
+
+      - name: pytest + покрытие
+        run: >
+          pytest -m "not data" --ignore=tests/test_data_contract.py
+          --cov=src --cov-report=term-missing --cov-report=xml:test-reports/coverage.xml
+          --junitxml=test-reports/junit-unit.xml
+
+      - name: Сохранить отчёты
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-tests-report
+          path: test-reports/

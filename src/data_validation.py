@@ -1,5 +1,6 @@
 import pandas as pd
 
+
 def build_expectations(cfg: dict) -> list:
     import great_expectations as gx  # импорт здесь, чтобы clean_taxi_data работал без GX
 
@@ -10,12 +11,16 @@ def build_expectations(cfg: dict) -> list:
         e.ExpectColumnValuesToBeUnique(column="id"),
         e.ExpectColumnValuesToBeInSet(column="vendor_id", value_set=cfg["vendor_ids"]),
         e.ExpectColumnValuesToBeInSet(column="store_and_fwd_flag", value_set=cfg["store_and_fwd_flags"]),
-        e.ExpectColumnValuesToBeBetween(column="passenger_count", min_value=cfg["passenger_min"], max_value=cfg["passenger_max"]),
-        e.ExpectColumnValuesToBeBetween(column="trip_duration", min_value=cfg["duration_min_sec"], max_value=cfg["duration_max_sec"]),
+        e.ExpectColumnValuesToBeBetween(column="passenger_count",
+                                        min_value=cfg["passenger_min"], max_value=cfg["passenger_max"]),
+        e.ExpectColumnValuesToBeBetween(column="trip_duration",
+                                        min_value=cfg["duration_min_sec"], max_value=cfg["duration_max_sec"]),
     ]
     for prefix in ("pickup", "dropoff"):
-        rules.append(e.ExpectColumnValuesToBeBetween(column=f"{prefix}_longitude", min_value=cfg["lon_min"], max_value=cfg["lon_max"]))
-        rules.append(e.ExpectColumnValuesToBeBetween(column=f"{prefix}_latitude", min_value=cfg["lat_min"], max_value=cfg["lat_max"]))
+        rules.append(e.ExpectColumnValuesToBeBetween(column=f"{prefix}_longitude",
+                                                     min_value=cfg["lon_min"], max_value=cfg["lon_max"]))
+        rules.append(e.ExpectColumnValuesToBeBetween(column=f"{prefix}_latitude",
+                                                     min_value=cfg["lat_min"], max_value=cfg["lat_max"]))
     rules += [e.ExpectColumnValuesToNotBeNull(column=c) for c in cols]
     return rules
 

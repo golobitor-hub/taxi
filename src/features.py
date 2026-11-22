@@ -5,6 +5,7 @@ import pandas as pd
 
 from src.utils import PROJECT_ROOT, ensure_parent, load_params
 
+
 def manhattan_distance_km(lat1, lon1, lat2, lon2):
     R = 6371.0
     dy = R * np.abs(np.radians(lat2 - lat1))
@@ -51,6 +52,27 @@ def make_features(df: pd.DataFrame, destination_known: bool = True) -> pd.DataFr
                                df["dropoff_longitude"], df["dropoff_latitude"]).astype("float32")
     return X.replace([np.inf, -np.inf], np.nan)
 
+LEAKAGE_COLUMNS = {"trip_duration", "dropoff_datetime", "id"}
+
+
+def make_target(trip_duration: pd.Series, threshold_sec: float) -> pd.Series:
+    """is_anomaly = 1, если поездка строго дольше порога."""
+    return (trip_duration > threshold_sec).astype("int8")
+
+
+def time_split(pickup_datetime: pd.Series, train_frac: float, calibration_frac: float) -> dict:
+    """Позиционные индексы train / cal / holdout в хронологическом порядке.
+
+    calibration_frac — граница calibration/holdout как доля от всех строк (не размер calibration).
+    """
+    if not 0 < train_frac < calibration_frac < 1:
+        raise ValueError(f"нужно 0 < train_frac < calibration_frac < 1, получено {train_frac}, {calibration_frac}")
+    order = np.argsort(pickup_datetime.to_numpy(), kind="stable")
+    cut_train = int(len(order) * train_frac)
+    cut_cal = int(len(order) * calibration_frac)
+    return {"train": order[:cut_train], "cal": order[cut_train:cut_cal], "holdout": order[cut_cal:]}
+
+
 def main(params_path: str) -> None:
     params = load_params(params_path)
     d, split = params["data"], params["split"]
@@ -58,16 +80,13 @@ def main(params_path: str) -> None:
     out_dir = PROJECT_ROOT / d["features_dir"]
 
     train = pd.read_csv(PROJECT_ROOT / d["clean_train"], parse_dates=["pickup_datetime", "dropoff_datetime"])
-    train["is_anomaly"] = (train["trip_duration"] > params["target"]["anomaly_threshold_sec"]).astype("int8")
+    train["is_anomaly"] = make_target(train["trip_duration"], params["target"]["anomaly_threshold_sec"])
 
     X = make_features(train, dest)
-    assert not {"trip_duration", "dropoff_datetime", "id"} & set(X.columns), "утечка целевой переменной"
+    assert not LEAKAGE_COLUMNS & set(X.columns), "утечка целевой переменной"
     y = train["is_anomaly"]
 
-    order = np.argsort(train["pickup_datetime"].to_numpy(), kind="stable")
-    cut_train = int(len(order) * split["train_frac"])
-    cut_cal = int(len(order) * split["calibration_frac"])
-    parts = {"train": order[:cut_train], "cal": order[cut_train:cut_cal], "holdout": order[cut_cal:]}
+    parts = time_split(train["pickup_datetime"], split["train_frac"], split["calibration_frac"])
 
     meta_cols = ["id", "pickup_datetime", "dropoff_datetime", "trip_duration", "is_anomaly"]
     for name, idx in parts.items():

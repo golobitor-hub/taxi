@@ -1,0 +1,6 @@
+# Инструменты разработки и CI: линтер, тесты, git-хуки
+-r requirements.txt
+ruff==0.17.6
+pytest==9.2.0
+pytest-cov==7.1.0
+pre-commit==4.7.0
