@@ -15,4 +15,4 @@ repos:
         entry: python -m pytest -q -x -m "not data" --ignore=tests/test_data_contract.py -p no:cacheprovider
         language: system
         pass_filenames: false
-        files: ^(src|tests)/.*\.py$|^(params|dvc)\.yaml$
+        files: ^(src|tests|app)/.*\.py$|^(params|dvc)\.yaml$

@@ -235,3 +235,51 @@ pytest -m "not data"                   # все тесты, как в CI
 pytest -m data                         # контракт на полном датасете (нужен dvc pull)
 pytest --cov=src --cov-report=term     # с покрытием
 ```
+
+---
+
+# Лабораторная работа №6. REST API для инференса и контейнеризация
+
+Сервис на FastAPI предсказывает, будет ли поездка аномально долгой (> 1 ч), по данным, известным в момент
+посадки. Код — пакет `app/`; признаки строятся той же функцией `make_features`, что и при обучении.
+
+| Метод | Путь | Что делает |
+|---|---|---|
+| GET | `/health` | статус сервиса и загружена ли модель (503, если нет) |
+| GET | `/model/info` | тип модели, хэш файла, признаки, порог, target recall |
+| POST | `/predict` | одна поездка → `is_anomaly`, `anomaly_probability`, `threshold` |
+| POST | `/predict/batch` | до 1000 поездок за запрос |
+| GET | `/docs` | интерактивная документация Swagger UI |
+
+Валидация (Pydantic, `app/schemas.py`): типы полей, `vendor_id ∈ {1, 2}`, `store_and_fwd_flag ∈ {N, Y}`,
+пассажиры и координаты в границах из `params.yaml → validation` (тот же контракт, что в ЛР2), время без
+часового пояса. Лишние поля запрещены — в том числе `trip_duration` и `dropoff_datetime`, которых нет в момент
+посадки (защита от утечки целевой переменной). Ошибка → HTTP 422 с указанием поля.
+
+## Запуск
+
+```bash
+dvc pull                                      # модель models/final_model.joblib (или dvc repro)
+uvicorn app.main:app --reload                 # локально: http://127.0.0.1:8000/docs
+
+docker build -t taxi-anomaly-api:0.6.0 .      # образ ~470 МБ: python:3.12-slim + только зависимости инференса
+docker run --rm -p 8000:8000 taxi-anomaly-api:0.6.0
+docker compose up --build                     # то же через docker-compose.yml
+```
+
+```bash
+curl -X POST http://127.0.0.1:8000/predict -H "Content-Type: application/json" -d '{"vendor_id": 2,
+  "pickup_datetime": "2016-06-10T17:30:00", "passenger_count": 2, "pickup_longitude": -73.985,
+  "pickup_latitude": 40.758, "dropoff_longitude": -73.7781, "dropoff_latitude": 40.6413}'
+# {"id":null,"is_anomaly":true,"anomaly_probability":0.98995...,"threshold":0.30602...}
+```
+
+Образ: зависимости ставятся отдельным слоем из `requirements-api.txt` (без Great Expectations, MLflow, DVC;
+версии scikit-learn/numpy/pandas совпадают с обучением), в контекст сборки по белому списку `.dockerignore`
+попадают только код инференса, `params.yaml` и модель; процесс работает от непривилегированного пользователя;
+`HEALTHCHECK` опрашивает `/health`.
+
+Тесты: `tests/test_api.py` (30 тестов, входят в CI). В CI настоящей модели нет, поэтому тесты обучают на
+`tests/fixtures/train_sample.csv` маленькую модель того же типа и подставляют её через `MODEL_PATH`.
+Проверка контейнера на 5000 поездках из `test.csv`: вероятности совпадают с выходом стадии `predict`
+(разница ≤ 1e-16).

@@ -1,7 +1,7 @@
 # CI: на каждый push (в любую ветку) и pull request запускаются три независимые проверки:
 #   1) lint        — ruff + проверка, что dvc.yaml собирается в граф стадий;
 #   2) data-tests  — контракт данных Great Expectations и quality gate из ЛР2;
-#   3) unit-tests  — юнит-тесты очистки, признаков, разбиения, метрик + покрытие кода.
+#   3) unit-tests  — юнит-тесты предобработки, метрик и REST API (FastAPI) + покрытие кода.
 # Полный датасет лежит в DVC-хранилище и раннеру недоступен, поэтому тесты данных идут на
 # реальной выборке tests/fixtures/train_sample.csv; тесты с маркером `data` здесь пропускаются.
 name: CI
@@ -78,7 +78,7 @@ jobs:
           path: test-reports/
 
   unit-tests:
-    name: Юнит-тесты предобработки
+    name: Юнит-тесты предобработки и API
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -98,7 +98,7 @@ jobs:
       - name: pytest + покрытие
         run: >
           pytest -m "not data" --ignore=tests/test_data_contract.py
-          --cov=src --cov-report=term-missing --cov-report=xml:test-reports/coverage.xml
+          --cov=src --cov=app --cov-report=term-missing --cov-report=xml:test-reports/coverage.xml
           --junitxml=test-reports/junit-unit.xml
 
       - name: Сохранить отчёты

@@ -1,0 +1,11 @@
+# Белый список: в контекст сборки попадает только нужное для инференса
+*
+!requirements-api.txt
+!params.yaml
+!src/__init__.py
+!src/utils.py
+!src/features.py
+!app/
+!models/final_model.joblib
+!models/threshold.json
+**/__pycache__

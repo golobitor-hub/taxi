@@ -1,0 +1,10 @@
+# Зависимости только для инференса (Docker-образ): без Great Expectations, MLflow и DVC.
+# Версии numpy/pandas/scikit-learn совпадают с обучением — иначе joblib может не загрузить модель.
+fastapi==0.162.0
+uvicorn==0.54.0
+pydantic==2.14.1
+numpy==2.5.4
+pandas==3.0.6
+scikit-learn==1.9.1
+joblib==1.6.0
+pyyaml==6.0.3

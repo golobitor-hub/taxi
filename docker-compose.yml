@@ -1,0 +1,7 @@
+services:
+  api:
+    build: .
+    image: taxi-anomaly-api:0.6.0
+    ports:
+      - "8000:8000"
+    restart: unless-stopped
